@@ -1,27 +1,26 @@
+# ==================== company_analysis.py ====================
 from data_extraction import extract_financial_data
 from ratios import RatioCalculator
 
-def analyze_company(ticker, tax_rate=0.21):
+def analyze_company(ticker, tax_rate=0.21, period='quarterly'):
     """
-    Complete workflow: Extract → Calculate → Report
+    Analyze most recent period only (latest quarter or year).
     """
     print(f"\n{'='*70}")
-    print(f"Analysis: {ticker}")
+    print(f"Analysis: {ticker} (Most Recent Period)")
     print('='*70)
     
-    # Step 1: Extract data
-    data = extract_financial_data(ticker)
+    # Extract data - get most recent period (last row)
+    df = extract_financial_data(ticker, period=period)
+    latest = df.iloc[-1]  # Most recent period
     
-    # Step 2: Calculate ratios
-    calc = RatioCalculator(data)
+    print(f"Period: {latest['date'].strftime('%Y-%m-%d')}")
     
-    # Step 3: Build report
+    # Calculate ratios for latest period
+    calc = RatioCalculator(latest)
+    
+    # Build report
     results = {
-        'Valuation': {
-            'P/E Ratio': calc.pe_ratio(),
-            'P/B Ratio': calc.pb_ratio(),
-            'EV/EBITDA': calc.ev_ebitda(),
-        },
         'Profitability': {
             'ROE (%)': calc.roe() * 100,
             'ROA (%)': calc.roa() * 100,
@@ -33,18 +32,10 @@ def analyze_company(ticker, tax_rate=0.21):
         },
         'Leverage': {
             'Debt/Equity': calc.debt_to_equity(),
-            'Interest Coverage': calc.interest_coverage(),
         },
         'Cash Flow': {
             'FCF ($M)': calc.fcf(tax_rate) / 1e6,
         },
-    }
-    
-    # Add Z-Score
-    z, zone = calc.z_score()
-    results['Credit Risk'] = {
-        'Z-Score': z,
-        'Risk Zone': zone,
     }
     
     # Print report
@@ -57,4 +48,4 @@ def analyze_company(ticker, tax_rate=0.21):
             else:
                 print(f"  {name:.<35} {value:>10}")
     
-    return results_df
+    return results

@@ -1,62 +1,59 @@
 import yfinance as yf
 import pandas as pd
-import numpy as np
 
-def extract_financial_data(ticker):
+def extract_financial_data(ticker, period='quarterly'):
     """
-    Core logic: yfinance returns DataFrames where:
-    - Rows = financial line items
-    - Columns = time periods (most recent = column 0)
-    - Access: df.loc['Item Name'].iloc[0]
+    Returns DataFrame with quarterly or annual financial data.
+    
+    Args:
+        ticker: Stock ticker
+        period: 'quarterly' or 'annual'
     """
     stock = yf.Ticker(ticker)
     
-    # Three main DataFrames
-    income = stock.income_stmt
-    balance = stock.balance_sheet
-    cashflow = stock.cashflow
-    info = stock.info               # Real-time data & metadata (dict)
+    # Select quarterly or annual data
+    if period == 'quarterly':
+        income = stock.quarterly_income_stmt
+        balance = stock.quarterly_balance_sheet
+        cashflow = stock.quarterly_cashflow
+    else:
+        income = stock.income_stmt
+        balance = stock.balance_sheet
+        cashflow = stock.cashflow
     
-    # Safe extraction function to handle missing keys
-    def get(df, key, default=0):
+    def get(df, key, col_idx):
         try:
-            val = df.loc[key].iloc[0]
-            return float(val) if pd.notna(val) else default
+            val = df.loc[key].iloc[col_idx]
+            return float(val) if pd.notna(val) else 0
         except:
-            return default
+            return 0
     
-    # Build dictionary with all needed data
-    data = {
-        # From info dict (current market data)
-        'price': info.get('currentPrice', 0),
-        'shares': info.get('sharesOutstanding', 0),
-        'market_cap': info.get('marketCap', 0),
-        
-        # From income statement
-        'revenue': get(income, 'Total Revenue'),
-        'cogs': get(income, 'Cost Of Revenue'),
-        'ebit': get(income, 'EBIT'),
-        'ebitda': get(income, 'EBITDA'),
-        'depreciation': get(income, 'Reconciled Depreciation'),
-        'interest': abs(get(income, 'Interest Expense')),
-        'net_income': get(income, 'Net Income'),
-        
-        # From balance sheet
-        'cash': get(balance, 'Cash And Cash Equivalents'),
-        'receivables': get(balance, 'Accounts Receivable'),
-        'inventory': get(balance, 'Inventory'),
-        'current_assets': get(balance, 'Current Assets'),
-        'total_assets': get(balance, 'Total Assets'),
-        'payables': get(balance, 'Accounts Payable'),
-        'current_liabilities': get(balance, 'Current Liabilities'),
-        'total_debt': get(balance, 'Total Debt'),
-        'equity': get(balance, 'Stockholders Equity'),
-        'retained_earnings': get(balance, 'Retained Earnings'),
-        
-        # From cash flow statement
-        'operating_cf': get(cashflow, 'Operating Cash Flow'),
-        'capex': get(cashflow, 'Capital Expenditure'),
-        'dividends': abs(get(cashflow, 'Cash Dividends Paid')),
-    }
+    # Build list of dictionaries (one per period)
+    data_list = []
+    for i in range(len(income.columns)):
+        date = income.columns[i]
+        data_list.append({
+            'date': date,
+            'revenue': get(income, 'Total Revenue', i),
+            'cogs': get(income, 'Cost Of Revenue', i),
+            'ebit': get(income, 'EBIT', i),
+            'ebitda': get(income, 'EBITDA', i),
+            'depreciation': get(income, 'Reconciled Depreciation', i),
+            'interest': abs(get(income, 'Interest Expense', i)),
+            'net_income': get(income, 'Net Income', i),
+            'cash': get(balance, 'Cash And Cash Equivalents', i),
+            'receivables': get(balance, 'Accounts Receivable', i),
+            'inventory': get(balance, 'Inventory', i),
+            'current_assets': get(balance, 'Current Assets', i),
+            'total_assets': get(balance, 'Total Assets', i),
+            'payables': get(balance, 'Accounts Payable', i),
+            'current_liabilities': get(balance, 'Current Liabilities', i),
+            'total_debt': get(balance, 'Total Debt', i),
+            'equity': get(balance, 'Stockholders Equity', i),
+            'retained_earnings': get(balance, 'Retained Earnings', i),
+            'operating_cf': get(cashflow, 'Operating Cash Flow', i),
+            'capex': get(cashflow, 'Capital Expenditure', i),
+        })
     
-    return data
+    df = pd.DataFrame(data_list)
+    return df.sort_values('date').reset_index(drop=True)
