@@ -2,7 +2,7 @@
 
 **Probabilistic DCF valuation system with Monte Carlo simulation for equity analysis**
 
-Developed alongside Corporate Finance coursework, University of Bologna
+Developed alongside Corporate Finance coursework, University of British Columbia (Canada)
 
 ---
 
